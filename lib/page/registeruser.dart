@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -26,8 +25,9 @@ class _UserRegisterState extends State<UserRegister> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+    );
     if (pickedFile != null) {
       setState(() {
         _profileImage = File(pickedFile.path);
@@ -46,46 +46,47 @@ class _UserRegisterState extends State<UserRegister> {
   }
 
   Future<void> registerUser() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-  try {
-    // สร้าง document ใหม่ใน collection 'users'
-    DocumentReference docRef =
-        FirebaseFirestore.instance.collection('users').doc();
+    try {
+      // สร้าง document ใหม่ใน collection 'users'
+      DocumentReference docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc();
 
-    String uid = docRef.id;
+      String uid = docRef.id;
 
-    // อัปโหลดรูปโปรไฟล์
-    String profileUrl = await uploadProfileImage(uid);
+      // อัปโหลดรูปโปรไฟล์
+      String profileUrl = await uploadProfileImage(uid);
 
-    // บันทึกข้อมูลผู้ใช้
-    await docRef.set({
-      'user_id': uid,
-      'phone_number': phoneCtl.text.trim(),
-      'name': nameCtl.text.trim(),
-      'email': emailCtl.text.trim(),
-      'profile_image': profileUrl,
-      'password': passwordCtl.text.trim(), // ต้องเป็น .text
-      'role': 'user',
-      'created_at': Timestamp.now(),
-      'updated_at': Timestamp.now(),
-    });
+      // บันทึกข้อมูลผู้ใช้
+      await docRef.set({
+        'user_id': uid,
+        'phone_number': phoneCtl.text.trim(),
+        'name': nameCtl.text.trim(),
+        'email': emailCtl.text.trim(),
+        'profile_image': profileUrl,
+        'password': passwordCtl.text.trim(), // ต้องเป็น .text
+        'role': 'user',
+        'created_at': Timestamp.now(),
+        'updated_at': Timestamp.now(),
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('ลงทะเบียนสำเร็จ')),
-    );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ลงทะเบียนสำเร็จ')));
 
-    Navigator.pop(context);
-  } catch (e) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
-  } finally {
-    setState(() => _isLoading = false);
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
-}
-
 
   Widget _buildInputField({
     required TextEditingController controller,
@@ -154,10 +155,15 @@ class _UserRegisterState extends State<UserRegister> {
                   child: CircleAvatar(
                     radius: 45,
                     backgroundColor: Colors.blue[100],
-                    backgroundImage:
-                        _profileImage != null ? FileImage(_profileImage!) : null,
+                    backgroundImage: _profileImage != null
+                        ? FileImage(_profileImage!)
+                        : null,
                     child: _profileImage == null
-                        ? const Icon(Icons.add_a_photo, size: 40, color: Colors.blue)
+                        ? const Icon(
+                            Icons.add_a_photo,
+                            size: 40,
+                            color: Colors.blue,
+                          )
                         : null,
                   ),
                 ),

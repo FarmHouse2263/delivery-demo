@@ -1,4 +1,3 @@
-import 'package:delivery1/page/registeruser.dart';
 import 'package:delivery1/page/riderLogin.dart';
 import 'package:delivery1/page/userLogin.dart';
 import 'package:flutter/material.dart';

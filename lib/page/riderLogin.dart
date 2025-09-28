@@ -22,7 +22,8 @@ class _RiderLoginState extends State<RiderLogin> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่าน')));
+        const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่าน')),
+      );
       return;
     }
 
@@ -40,13 +41,15 @@ class _RiderLoginState extends State<RiderLogin> {
         var rider = snap.docs.first.data() as Map<String, dynamic>;
 
         if (rider['role'] != 'rider') {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('ไม่ใช่ Rider')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('ไม่ใช่ Rider')));
           return;
         }
 
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Login สำเร็จ!')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Login สำเร็จ!')));
 
         // ไปหน้า Home Rider
         Navigator.pushReplacement(
@@ -61,11 +64,13 @@ class _RiderLoginState extends State<RiderLogin> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email หรือ Password ไม่ถูกต้อง')));
+          const SnackBar(content: Text('Email หรือ Password ไม่ถูกต้อง')),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Login Failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Login Failed: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -96,8 +101,11 @@ class _RiderLoginState extends State<RiderLogin> {
                   color: Colors.orange,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child:
-                    const Icon(Icons.delivery_dining, size: 40, color: Colors.white),
+                child: const Icon(
+                  Icons.delivery_dining,
+                  size: 40,
+                  color: Colors.white,
+                ),
               ),
 
               const SizedBox(height: 30),
@@ -172,7 +180,9 @@ class _RiderLoginState extends State<RiderLogin> {
                     prefixIcon: const Icon(Icons.lock, color: Colors.orange),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.grey,
                       ),
                       onPressed: () {
@@ -266,7 +276,11 @@ class _RiderLoginState extends State<RiderLogin> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange[700],
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
