@@ -1,5 +1,5 @@
-import 'package:delivery1/page/home.dart';
-import 'package:delivery1/page/registerrider.dart';
+import 'package:delivery1/page/rider/homeRider.dart';
+import 'package:delivery1/page/rider/registerrider.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 

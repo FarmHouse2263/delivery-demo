@@ -1,10 +1,12 @@
-import 'package:delivery1/page/riderLogin.dart';
-import 'package:delivery1/page/userLogin.dart';
+// หน้าแรกเปิดแอพ
+import 'package:delivery1/page/rider/riderLogin.dart';
+import 'package:delivery1/page/user/userLogin.dart';
 import 'package:flutter/material.dart';
-
-
 class LandingPage extends StatelessWidget {
-  const LandingPage({super.key});
+  final String? senderEmail;
+  final String? senderName;
+  final String? senderId;
+  const LandingPage({super.key, this.senderEmail, this.senderId, this.senderName});
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +75,7 @@ class LandingPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => LoginPage()),
+                      MaterialPageRoute(builder: (_) => LoginPage(senderEmail: senderEmail, senderId: senderId, senderName: senderName)),
                     );
                   },
                   style: ElevatedButton.styleFrom(

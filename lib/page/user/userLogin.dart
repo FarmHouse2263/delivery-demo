@@ -1,10 +1,16 @@
+// import 'package:delivery1/page/user/userSender.dart';
+
+import 'package:delivery1/page/user/userSender.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:delivery1/page/registeruser.dart';
-import 'package:delivery1/page/homeUser.dart';
+import 'package:delivery1/page/user/registeruser.dart';
+import 'package:delivery1/page/user/userReceiver.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final String? senderId;
+  final String? senderName;
+  final String? senderEmail;
+  const LoginPage({super.key, required this.senderEmail, required this.senderId, required this.senderName});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -18,45 +24,68 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   void login() async {
-    String email = emailController.text.trim();
-    String password = passwordController.text.trim();
+  String email = emailController.text.trim();
+  String password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่าน')),
-      );
-      return;
-    }
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่าน')),
+    );
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    try {
-      QuerySnapshot userSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .where('password', isEqualTo: password)
-          .get();
+  try {
+    QuerySnapshot userSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .where('password', isEqualTo: password)
+        .get();
 
-      if (userSnap.docs.isNotEmpty) {
-        // Login success
+    if (userSnap.docs.isNotEmpty) {
+      // ✅ ดึงข้อมูลผู้ใช้คนแรก
+      final userDoc = userSnap.docs.first;
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final role = userData['role'];
+      final name = userData['name'];
+      // final email = userData['email'];
+      final id = userDoc.id;
+
+      if (role == 'Sender') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => HomePage(userEmail: email)),
+          MaterialPageRoute(
+            builder: (context) => UserSender(senderName: name, senderId: id),
+          ),
+        );
+      } else if (role == 'Receiver') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Userreceiver(userEmail: email),
+          ),
         );
       } else {
-        // Login fail
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Email หรือ Password ไม่ถูกต้อง')),
+          const SnackBar(content: Text('ไม่พบ Role ของบัญชีนี้')),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Login Failed: $e')));
-    } finally {
-      setState(() => _isLoading = false);
+    } else {
+      // ❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email หรือ Password ไม่ถูกต้อง')),
+      );
     }
+  } catch (e) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Login Failed: $e')));
+  } finally {
+    setState(() => _isLoading = false);
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
