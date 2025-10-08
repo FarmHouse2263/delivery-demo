@@ -1,6 +1,7 @@
+import 'dart:typed_data';
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
-// import 'dart:nativewrappers/_internal/vm/lib/math_patch.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -20,158 +21,109 @@ class _RiderRegisterState extends State<RiderRegister> {
   final TextEditingController nameCtl = TextEditingController();
   final TextEditingController vehicleNumberCtl = TextEditingController();
 
-  XFile? profileRider; // เก็บรูปของไรเดอร์
-  XFile? vehicleImage;
-  final ImagePicker picker = ImagePicker(); // ใช้เลือกภาพจากแกลเลอรี่หรือกล้อง
+  Uint8List? profileRiderBytes; // เก็บโปรไฟล์เป็น bytes
+  Uint8List? vehicleImageBytes;  // เก็บรูปรถเป็น bytes
+  final ImagePicker picker = ImagePicker();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  // ฟังก์ชันสมัครสมาชิกของไรเดอร์
+  /// ฟังก์ชันเลือกหรือถ่ายรูป (ทั้ง Profile / Vehicle)
+  Future<void> _pickImage({required bool isProfile}) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library, color: Colors.orange),
+            title: const Text('เลือกจากแกลเลอรี่'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt, color: Colors.orange),
+            title: const Text('ถ่ายรูป'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+        ],
+      ),
+    );
+
+    if (source != null) {
+      final pickedFile = await picker.pickImage(source: source);
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        setState(() {
+          if (isProfile) {
+            profileRiderBytes = bytes;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('เลือกโปรไฟล์เรียบร้อย')),
+            );
+          } else {
+            vehicleImageBytes = bytes;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('เลือกรูปรถเรียบร้อย')),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  /// แปลงรูปเป็น Base64 สำหรับ Firestore
+  Map<String, dynamic>? _convertImage(Uint8List? bytes) {
+    if (bytes == null) return null;
+    return {
+      'imageBase64': base64Encode(bytes),
+      'uploadedAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  /// ฟังก์ชันสมัครสมาชิก
   Future<void> registerRider() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (profileRiderBytes == null || vehicleImageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณาอัปโหลดรูปโปรไฟล์และรูปรถ')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      // สร้าง document ใหม่ใน collection 'riders'
-      DocumentReference docRef = FirebaseFirestore.instance
-          .collection('riders')
-          .doc();
+      final docRef = FirebaseFirestore.instance.collection('riders').doc();
+      final uid = docRef.id;
 
-      String uid = docRef.id;
-
-      // บันทึกข้อมูล Rider เข้า Firebase
       await docRef.set({
         'rider_id': uid,
         'phone_number': phoneCtl.text.trim(),
         'name': nameCtl.text.trim(),
         'email': emailCtl.text.trim(),
-        'vehicle_image': vehicleImage?.path, // รูปรถ
-        'vehicle_number': vehicleNumberCtl.text.trim(), // ทะเบียนรถ
-        'password': passwordCtl.text.trim(), // ต้องใช้ .text
-        'profile_rider':
-            profileRider?.path, // เพิ่ม path profile image เข้า firebase
+        'vehicle_number': vehicleNumberCtl.text.trim(),
+        'password': passwordCtl.text.trim(),
         'role': 'rider',
-        'created_at': Timestamp.now(),
-        'updated_at': Timestamp.now(),
+        'profile_rider': _convertImage(profileRiderBytes),
+        'vehicle_image': _convertImage(vehicleImageBytes),
+        'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('ลงทะเบียนสำเร็จ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ลงทะเบียนสำเร็จ')),
+      );
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  void _showImagePickerOptions() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ทำส่วนนี้ต่อ โค้ดใน gpt โค้ดอัพรูปโปรไฟล์ User register function
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: Colors.orange),
-                title: const Text('เลือกจากแกลเลอรี่'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  profileRider = await picker.pickImage(
-                    source: ImageSource.gallery,
-                  );
-                  if (profileRider != null) {
-                    log('เลือกไฟล์: ${profileRider!.path}');
-                    setState(() {});
-                  } else {
-                    log('ไม่มีไฟล์รูป');
-                  }
-                },
-              ),
-
-              // เปิดกล้อง
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: Colors.orange),
-                title: const Text('ถ่ายรูป'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  profileRider = await picker.pickImage(
-                    source: ImageSource.camera,
-                  );
-                  if (profileRider != null) {
-                    log('เลือกไฟล์: ${profileRider!.path}');
-                    setState(() {});
-                  } else {
-                    log('ไม่มีไฟล์รูป');
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ฟังก์ชันรูปรถไรเดอร์
-  void _showVehicleImagePicker() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Colors.orange),
-              title: const Text('เลือกจากแกลเลอรี่'),
-              onTap: () async {
-                Navigator.pop(context);
-                vehicleImage = await picker.pickImage(
-                  source: ImageSource.gallery,
-                );
-                if (vehicleImage != null) {
-                  log('เลือกรูปยานพาหนะ: ${vehicleImage!.path}');
-                  setState(() {});
-                } else {
-                  log('ไม่มีรูปยานพาหนะ');
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Colors.orange),
-              title: const Text('ถ่ายรูป'),
-              onTap: () async {
-                Navigator.pop(context);
-                vehicleImage = await picker.pickImage(
-                  source: ImageSource.camera,
-                );
-                if (vehicleImage != null) {
-                  log('เลือกรูปยานพาหนะ: ${vehicleImage!.path}');
-                  setState(() {});
-                } else {
-                  log('ไม่มีรูปยานพาหนะ');
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildTextField({
@@ -234,82 +186,48 @@ class _RiderRegisterState extends State<RiderRegister> {
               children: [
                 const SizedBox(height: 20),
 
-                // App Icon for Rider Registration
-                // Container(
-                //   width: 80,
-                //   height: 80,
-                //   decoration: BoxDecoration(
-                //     color: Colors.orange,
-                //     borderRadius: BorderRadius.circular(20),
-                //   ),
-                //   child: const Icon(
-                //     Icons.person_add,
-                //     size: 40,
-                //     color: Colors.white,
-                //   ),
-                // ),
+                // Profile
                 GestureDetector(
-                  onTap: _showImagePickerOptions, // กดเพื่อเลือก/ถ่ายรูป
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          shape: BoxShape.circle,
-                        ),
-                        child: profileRider != null
-                            ? ClipOval(
-                                child: Image.file(
-                                  File(profileRider!.path),
-                                  width: 120,
-                                  height: 120,
-                                  fit: BoxFit.cover, // ให้ภาพพอดีกับวงกลม
-                                ),
-                              )
-                            : Icon(
-                                Icons.camera_alt,
-                                size: 50,
-                                color: Colors.orange[200],
-                              ),
-                      ),
-                    ],
+                  onTap: () => _pickImage(isProfile: true),
+                  child: CircleAvatar(
+                    radius: 60,
+                    backgroundColor: Colors.orange[50],
+                    child: profileRiderBytes != null
+                        ? ClipOval(
+                            child: Image.memory(
+                              profileRiderBytes!,
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Icon(Icons.camera_alt,
+                            size: 50, color: Colors.orange[200]),
                   ),
                 ),
-
                 const SizedBox(height: 30),
 
                 const Text(
                   'เข้าร่วมกับเรา!',
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
                 ),
-
                 const SizedBox(height: 8),
-
                 Text(
                   'สมัครเป็น Rider และเริ่มต้นหารายได้',
                   style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                 ),
-
                 const SizedBox(height: 40),
 
-                // Name Field
                 _buildTextField(
                   controller: nameCtl,
                   labelText: 'ชื่อ-นามสกุล',
                   prefixIcon: Icons.person,
                   validator: (v) => v!.isEmpty ? 'กรุณากรอกชื่อ' : null,
                 ),
-
                 const SizedBox(height: 20),
-
-                // Phone Field
                 _buildTextField(
                   controller: phoneCtl,
                   labelText: 'เบอร์โทรศัพท์',
@@ -317,10 +235,7 @@ class _RiderRegisterState extends State<RiderRegister> {
                   keyboardType: TextInputType.phone,
                   validator: (v) => v!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
                 ),
-
                 const SizedBox(height: 20),
-
-                // Email Field
                 _buildTextField(
                   controller: emailCtl,
                   labelText: 'อีเมล',
@@ -328,10 +243,7 @@ class _RiderRegisterState extends State<RiderRegister> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) => v!.isEmpty ? 'กรุณากรอกอีเมล' : null,
                 ),
-
                 const SizedBox(height: 20),
-
-                // Password Field
                 _buildTextField(
                   controller: passwordCtl,
                   labelText: 'รหัสผ่าน',
@@ -353,101 +265,67 @@ class _RiderRegisterState extends State<RiderRegister> {
                   validator: (v) =>
                       v!.length < 6 ? 'รหัสผ่านอย่างน้อย 6 ตัว' : null,
                 ),
-
                 const SizedBox(height: 20),
 
-                // อัปโหลดรูปยานพาหนะ
+                // Vehicle Image
                 GestureDetector(
-                  onTap: _showVehicleImagePicker,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'รูปยานพาหนะ',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Center(
-                        child: Container(
-                          width: double.infinity,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            color: Colors.orange[50],
+                  onTap: () => _pickImage(isProfile: false),
+                  child: Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: vehicleImageBytes != null
+                        ? ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.orange.shade200),
+                            child: Image.memory(
+                              vehicleImageBytes!,
+                              width: double.infinity,
+                              height: 120,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.camera_alt,
+                                  size: 40, color: Colors.orange[300]),
+                              const SizedBox(height: 8),
+                              Text(
+                                'แตะเพื่ออัปโหลด',
+                                style: TextStyle(
+                                    color: Colors.orange[400], fontSize: 14),
+                              ),
+                            ],
                           ),
-                          child: vehicleImage != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Image.file(
-                                    File(vehicleImage!.path),
-                                    width: 180,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.camera_alt,
-                                      size: 40,
-                                      color: Colors.orange[300],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'แตะเพื่ออัปโหลด',
-                                      style: TextStyle(
-                                        color: Colors.orange[400],
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // Vehicle Number Field
                 _buildTextField(
                   controller: vehicleNumberCtl,
                   labelText: 'ทะเบียนรถ',
                   prefixIcon: Icons.motorcycle,
-                  validator: (v) => v!.isEmpty ? 'กรุณากรอกทะเบียนรถ' : null,
+                  validator: (v) =>
+                      v!.isEmpty ? 'กรุณากรอกทะเบียนรถ' : null,
                 ),
-
                 const SizedBox(height: 30),
 
                 // Register Button
-                Container(
+                SizedBox(
                   width: double.infinity,
                   height: 55,
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : registerRider,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0),
                     child: _isLoading
                         ? const SizedBox(
                             width: 20,
@@ -460,57 +338,10 @@ class _RiderRegisterState extends State<RiderRegister> {
                         : const Text(
                             'สมัครสมาชิก',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),
-
-                const SizedBox(height: 20),
-
-                // Info Section
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.orange[200]!),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.orange[700],
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'ข้อมูลที่ต้องเตรียม',
-                              style: TextStyle(
-                                color: Colors.orange[700],
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '• รูปภาพโปรไฟล์และรูปรถ สามารถอัพโหลดได้ภายหลัง\n• ทะเบียนรถต้องถูกต้องและชัดเจน\n• อีเมลจะใช้สำหรับเข้าสู่ระบบ',
-                        style: TextStyle(
-                          color: Colors.orange[600],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 const SizedBox(height: 20),
               ],
             ),
