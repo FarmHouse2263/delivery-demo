@@ -27,9 +27,12 @@ class _CreateOrderState extends State<CreateOrder> {
   final ImagePicker picker = ImagePicker();
 
   Uint8List? orderImageBytes; // เก็บรูปเป็น bytes ทันที
-  final TextEditingController _recipientNameController = TextEditingController();
-  final TextEditingController _recipientPhoneController = TextEditingController();
-  final TextEditingController _recipientAddressController = TextEditingController();
+  final TextEditingController _recipientNameController =
+      TextEditingController();
+  final TextEditingController _recipientPhoneController =
+      TextEditingController();
+  final TextEditingController _recipientAddressController =
+      TextEditingController();
   final TextEditingController _itemController = TextEditingController();
 
   String _recipientGps = '';
@@ -61,9 +64,9 @@ class _CreateOrderState extends State<CreateOrder> {
   Future<void> _searchRecipient() async {
     final phone = _recipientPhoneController.text.trim();
     if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกเบอร์โทรผู้รับ')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณากรอกเบอร์โทรผู้รับ')));
       return;
     }
 
@@ -82,18 +85,18 @@ class _CreateOrderState extends State<CreateOrder> {
           _recipientAddressController.text = data['address'] ?? '';
           _recipientGps = data['gps'] ?? '';
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ดึงข้อมูลผู้รับสำเร็จ')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('ดึงข้อมูลผู้รับสำเร็จ')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('ไม่พบข้อมูลผู้รับจากหมายเลขนี้')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     }
   }
 
@@ -124,7 +127,9 @@ class _CreateOrderState extends State<CreateOrder> {
               title: const Text('เลือกจากแกลเลอรี่'),
               onTap: () async {
                 Navigator.pop(context);
-                final picked = await picker.pickImage(source: ImageSource.gallery);
+                final picked = await picker.pickImage(
+                  source: ImageSource.gallery,
+                );
                 if (picked != null) {
                   orderImageBytes = await picked.readAsBytes(); // แปลงทันที
                   setState(() {});
@@ -136,7 +141,9 @@ class _CreateOrderState extends State<CreateOrder> {
               title: const Text('ถ่ายรูป'),
               onTap: () async {
                 Navigator.pop(context);
-                final picked = await picker.pickImage(source: ImageSource.camera);
+                final picked = await picker.pickImage(
+                  source: ImageSource.camera,
+                );
                 if (picked != null) {
                   orderImageBytes = await picked.readAsBytes(); // แปลงทันที
                   setState(() {});
@@ -197,15 +204,15 @@ class _CreateOrderState extends State<CreateOrder> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ สร้างรายการส่งสำเร็จ')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('✅ สร้างรายการส่งสำเร็จ')));
 
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ เกิดข้อผิดพลาด: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('❌ เกิดข้อผิดพลาด: $e')));
     }
   }
 
@@ -213,7 +220,11 @@ class _CreateOrderState extends State<CreateOrder> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('สร้างรายการส่งสินค้า'),
+        foregroundColor: Colors.white,
+        title: const Text(
+          'สร้างรายการส่งสินค้า',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue[700],
       ),
       body: SingleChildScrollView(
@@ -221,7 +232,10 @@ class _CreateOrderState extends State<CreateOrder> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('ข้อมูลผู้รับ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'ข้อมูลผู้รับ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -231,7 +245,9 @@ class _CreateOrderState extends State<CreateOrder> {
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       labelText: 'เบอร์โทรผู้รับ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -241,7 +257,9 @@ class _CreateOrderState extends State<CreateOrder> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[700],
                     padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Icon(Icons.search, color: Colors.white),
                 ),
@@ -252,7 +270,9 @@ class _CreateOrderState extends State<CreateOrder> {
               controller: _recipientNameController,
               decoration: InputDecoration(
                 labelText: 'ชื่อผู้รับ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -260,11 +280,16 @@ class _CreateOrderState extends State<CreateOrder> {
               controller: _recipientAddressController,
               decoration: InputDecoration(
                 labelText: 'ที่อยู่ผู้รับ',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            const Text('รายการสินค้า', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'รายการสินค้า',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -273,7 +298,9 @@ class _CreateOrderState extends State<CreateOrder> {
                     controller: _itemController,
                     decoration: InputDecoration(
                       labelText: 'สินค้า',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -283,7 +310,9 @@ class _CreateOrderState extends State<CreateOrder> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue[700],
                     padding: const EdgeInsets.all(16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Icon(Icons.add, color: Colors.white),
                 ),
@@ -310,7 +339,10 @@ class _CreateOrderState extends State<CreateOrder> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('รูปประกอบสถานะ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'รูปประกอบสถานะ',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
@@ -323,10 +355,17 @@ class _CreateOrderState extends State<CreateOrder> {
                     child: orderImageBytes != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: Image.memory(orderImageBytes!, fit: BoxFit.cover),
+                            child: Image.memory(
+                              orderImageBytes!,
+                              fit: BoxFit.cover,
+                            ),
                           )
                         : const Center(
-                            child: Icon(Icons.camera_alt, size: 50, color: Colors.grey),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
                           ),
                   ),
                 ],
@@ -340,9 +379,18 @@ class _CreateOrderState extends State<CreateOrder> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue[700],
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text('สร้างรายการส่ง', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: const Text(
+                  'สร้างรายการส่ง',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ),
           ],

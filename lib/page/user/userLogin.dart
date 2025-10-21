@@ -1,16 +1,17 @@
 // import 'package:delivery1/page/user/userSender.dart';
-
 import 'package:delivery1/page/user/userSender.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery1/page/user/registeruser.dart';
 import 'package:delivery1/page/user/userReceiver.dart';
+import 'dart:developer';
 
 class LoginPage extends StatefulWidget {
-  final String? senderId;
-  final String? senderName;
-  final String? senderEmail;
-  const LoginPage({super.key, required this.senderEmail, required this.senderId, required this.senderName});
+  
+  const LoginPage({
+    super.key,
+    
+  });
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -44,26 +45,42 @@ class _LoginPageState extends State<LoginPage> {
         .get();
 
     if (userSnap.docs.isNotEmpty) {
-      // ✅ ดึงข้อมูลผู้ใช้คนแรก
       final userDoc = userSnap.docs.first;
       final userData = userDoc.data() as Map<String, dynamic>;
+
+      // ✅ เพิ่ม log เพื่อตรวจสอบข้อมูล
+      log("User logged in:");
+      log("ID: ${userDoc.id}");
+      log("Name: ${userData['name']}");
+      log("Email: ${userData['email']}");
+      log("Phone: ${userData['phone_number']}");
+      log("Role: ${userData['role']}");
+      log('profile_image: ${userData['profile_image']}');
+
       final role = userData['role'];
       final name = userData['name'];
-      // final email = userData['email'];
       final id = userDoc.id;
 
       if (role == 'Sender') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => UserSender(senderName: name, senderId: id),
+            builder: (context) => UserSender(
+              senderId: id,
+              senderName: name,
+              senderEmail: email,
+            ),
           ),
         );
       } else if (role == 'Receiver') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => Userreceiver(userEmail: email),
+            builder: (context) => UserReceiver(
+              recipientPhone: userData['phone_number'] ?? '',
+              recipientName: userData['name'] ?? '',
+              // recipientProfileImage: userData['profile_image'] ?? '',
+            ),
           ),
         );
       } else {
@@ -76,11 +93,13 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Email หรือ Password ไม่ถูกต้อง')),
       );
+      log("Login failed: No user found for email $email");
     }
   } catch (e) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Login Failed: $e')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Login Failed: $e')),
+    );
+    log("Login error: $e");
   } finally {
     setState(() => _isLoading = false);
   }
@@ -94,6 +113,11 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
         title: const Text('เข้าสู่ระบบ User'),
         centerTitle: true,
       ),

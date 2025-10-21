@@ -9,7 +9,7 @@ void main() async {
 
   await FirebaseAppCheck.instance.activate(
     androidProvider: AndroidProvider.debug,
-    appleProvider: AppleProvider.debug
+    appleProvider: AppleProvider.debug,
   );
   runApp(MyApp());
 }
@@ -17,6 +17,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    
     return MaterialApp(
       title: 'Firebase Login Demo',
       theme: ThemeData(primarySwatch: Colors.blue),

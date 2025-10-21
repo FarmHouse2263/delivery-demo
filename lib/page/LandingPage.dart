@@ -75,7 +75,7 @@ class LandingPage extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => LoginPage(senderEmail: senderEmail, senderId: senderId, senderName: senderName)),
+                      MaterialPageRoute(builder: (_) => LoginPage()),
                     );
                   },
                   style: ElevatedButton.styleFrom(

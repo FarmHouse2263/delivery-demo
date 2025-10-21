@@ -46,7 +46,9 @@ class _UserRegisterState extends State<UserRegister> {
               title: const Text('เลือกจากแกลเลอรี่'),
               onTap: () async {
                 Navigator.pop(context);
-                final picked = await picker.pickImage(source: ImageSource.gallery);
+                final picked = await picker.pickImage(
+                  source: ImageSource.gallery,
+                );
                 if (picked != null) {
                   profileImageBytes = await picked.readAsBytes();
                   setState(() {});
@@ -58,7 +60,9 @@ class _UserRegisterState extends State<UserRegister> {
               title: const Text('ถ่ายรูป'),
               onTap: () async {
                 Navigator.pop(context);
-                final picked = await picker.pickImage(source: ImageSource.camera);
+                final picked = await picker.pickImage(
+                  source: ImageSource.camera,
+                );
                 if (picked != null) {
                   profileImageBytes = await picked.readAsBytes();
                   setState(() {});
@@ -106,16 +110,16 @@ class _UserRegisterState extends State<UserRegister> {
         'updated_at': FieldValue.serverTimestamp(),
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ลงทะเบียนสำเร็จ')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ลงทะเบียนสำเร็จ')));
 
       Navigator.pop(context);
     } catch (e) {
       log('Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -157,10 +161,17 @@ class _UserRegisterState extends State<UserRegister> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('สมัครสมาชิก'),
+        title: const Text(
+          'สมัครสมาชิก',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.blue,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -191,7 +202,11 @@ class _UserRegisterState extends State<UserRegister> {
                                 fit: BoxFit.cover,
                               ),
                             )
-                          : Icon(Icons.camera_alt, size: 50, color: Colors.blue[200]),
+                          : Icon(
+                              Icons.camera_alt,
+                              size: 50,
+                              color: Colors.blue[200],
+                            ),
                     ),
                   ],
                 ),
@@ -199,7 +214,11 @@ class _UserRegisterState extends State<UserRegister> {
               const SizedBox(height: 20),
               const Text(
                 'สร้างบัญชีผู้ใช้ใหม่',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -224,7 +243,8 @@ class _UserRegisterState extends State<UserRegister> {
                         label: 'เบอร์โทรศัพท์',
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
-                        validator: (v) => v!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
+                        validator: (v) =>
+                            v!.isEmpty ? 'กรุณากรอกเบอร์โทร' : null,
                       ),
                       _buildInputField(
                         controller: emailCtl,
@@ -238,13 +258,18 @@ class _UserRegisterState extends State<UserRegister> {
                         label: 'รหัสผ่าน',
                         icon: Icons.lock_outline,
                         obscureText: _obscurePassword,
-                        validator: (v) => v!.length < 6 ? 'รหัสผ่านอย่างน้อย 6 ตัว' : null,
+                        validator: (v) =>
+                            v!.length < 6 ? 'รหัสผ่านอย่างน้อย 6 ตัว' : null,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                             color: Colors.grey,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                       ),
                       Container(
@@ -253,7 +278,10 @@ class _UserRegisterState extends State<UserRegister> {
                           value: selectedRole,
                           decoration: InputDecoration(
                             hintText: 'เลือก Role',
-                            prefixIcon: const Icon(Icons.person, color: Colors.blue),
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: Colors.blue,
+                            ),
                             filled: true,
                             fillColor: Colors.grey[100],
                             border: OutlineInputBorder(
@@ -262,18 +290,27 @@ class _UserRegisterState extends State<UserRegister> {
                             ),
                           ),
                           items: const [
-                            DropdownMenuItem(value: 'Sender', child: Text('Sender')),
-                            DropdownMenuItem(value: 'Receiver', child: Text('Receiver')),
+                            DropdownMenuItem(
+                              value: 'Sender',
+                              child: Text('Sender'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Receiver',
+                              child: Text('Receiver'),
+                            ),
                           ],
-                          onChanged: (value) => setState(() => selectedRole = value),
-                          validator: (value) => value == null ? 'กรุณาเลือก Role' : null,
+                          onChanged: (value) =>
+                              setState(() => selectedRole = value),
+                          validator: (value) =>
+                              value == null ? 'กรุณาเลือก Role' : null,
                         ),
                       ),
                       _buildInputField(
                         controller: addressCtl,
                         label: 'ที่อยู่',
                         icon: Icons.home_outlined,
-                        validator: (v) => v!.isEmpty ? 'กรุณากรอกที่อยู่' : null,
+                        validator: (v) =>
+                            v!.isEmpty ? 'กรุณากรอกที่อยู่' : null,
                       ),
                       TextFormField(
                         controller: gpsCtl,
@@ -286,14 +323,20 @@ class _UserRegisterState extends State<UserRegister> {
                             onPressed: () async {
                               final result = await Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => const MapPickerPage()),
+                                MaterialPageRoute(
+                                  builder: (_) => const MapPickerPage(),
+                                ),
                               );
-                              if (result != null) gpsCtl.text = "${result.latitude}, ${result.longitude}";
+                              if (result != null)
+                                gpsCtl.text =
+                                    "${result.latitude}, ${result.longitude}";
                             },
                           ),
                           filled: true,
                           fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         validator: (v) => v!.isEmpty ? 'กรุณาเลือกพิกัด' : null,
                       ),
@@ -305,11 +348,21 @@ class _UserRegisterState extends State<UserRegister> {
                           onPressed: _isLoading ? null : registerUser,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           child: _isLoading
-                              ? const CircularProgressIndicator(color: Colors.white)
-                              : const Text('สมัครสมาชิก', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'สมัครสมาชิก',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 20),

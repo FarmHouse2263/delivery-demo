@@ -2,15 +2,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'create_order.dart';
+import 'map_sender.dart';
 
 class UserSender extends StatefulWidget {
   final String senderId;
   final String senderName;
+  final String senderEmail;
 
   const UserSender({
     super.key,
     required this.senderId,
     required this.senderName,
+    required this.senderEmail,
   });
 
   @override
@@ -20,7 +23,7 @@ class UserSender extends StatefulWidget {
 class _UserSenderState extends State<UserSender> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // สีตามสถานะ
+  // 🟦 กำหนดสีสถานะไว้ที่ด้านบน
   final Map<String, Color> statusColorMap = {
     'รอไรเดอร์มารับสินค้า': Colors.orange,
     'ไรเดอร์รับงาน': Colors.blue,
@@ -32,21 +35,74 @@ class _UserSenderState extends State<UserSender> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[100],
+
       appBar: AppBar(
-        title: Text(
-          'ผู้ส่งสินค้า: ${widget.senderName}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.blue[700],
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
+  foregroundColor: Colors.white,
+  elevation: 2,
+  title: Text(
+    'รายการส่งของ: ${widget.senderName}',
+    style: const TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  centerTitle: true,
+  backgroundColor: Colors.blue[700],
+
+  // ✅ เพิ่มปุ่มดูแผนที่ด้านขวา
+  actions: [
+    IconButton(
+      icon: const Icon(Icons.map_outlined),
+      tooltip: 'ดูแผนที่',
+      onPressed: () {
+        // ตรวจสอบสถานะของรายการล่าสุด
+        _firestore
+            .collection('orders')
+            .where('senderId', isEqualTo: widget.senderId)
+            .orderBy('createdAt', descending: true)
+            .limit(1) // เอารายการล่าสุด
+            .get()
+            .then((snapshot) {
+          if (snapshot.docs.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('ยังไม่มีรายการส่งสินค้า'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
+
+          final data =
+              snapshot.docs.first.data() as Map<String, dynamic>;
+          final status = data['status'] as String;
+
+          if (status == 'รอไรเดอร์มารับสินค้า') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'ยังไม่สามารถเปิดแผนที่ได้ เนื่องจากยังไม่มีไรเดอร์รับงาน'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MapPage(),
+              ),
+            );
+          }
+        });
+      },
+    ),
+  ],
+),
+
+
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('orders')
@@ -57,8 +113,14 @@ class _UserSenderState extends State<UserSender> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('ยังไม่มีรายการส่งสินค้า'));
+            return const Center(
+              child: Text(
+                'ยังไม่มีรายการส่งสินค้า',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
           }
 
           final orders = snapshot.data!.docs;
@@ -68,73 +130,141 @@ class _UserSenderState extends State<UserSender> {
             itemCount: orders.length,
             itemBuilder: (context, index) {
               final order = orders[index];
-              final items = List<String>.from(order['items']);
-              final createdAt = (order['createdAt'] as Timestamp?)?.toDate();
-              final status = order['status'] as String;
+              final data = order.data() as Map<String, dynamic>;
+              final items = List<String>.from(data['items']);
+              final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+              final status = data['status'] as String;
               final statusColor = statusColorMap[status] ?? Colors.grey;
 
-              // 🔹 แปลง Base64 เป็น Image
-              Widget orderImageWidget = const SizedBox();
-              if (order['orderImage'] != null && order['orderImage']['imageBase64'] != null) {
+              Widget imageWidget = const Icon(
+                Icons.inventory_2_outlined,
+                size: 70,
+                color: Colors.grey,
+              );
+
+              if (data['orderImage'] != null &&
+                  data['orderImage']['imageBase64'] != null) {
                 try {
-                  final imageBytes = base64Decode(order['orderImage']['imageBase64']);
-                  orderImageWidget = Image.memory(
-                    imageBytes,
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
+                  final imageBytes = base64Decode(
+                    data['orderImage']['imageBase64'],
                   );
-                } catch (e) {
-                  orderImageWidget = const Icon(Icons.broken_image, size: 80, color: Colors.grey);
-                }
+                  imageWidget = ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(
+                      imageBytes,
+                      width: 90,
+                      height: 90,
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                } catch (_) {}
               }
 
               return Card(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: const EdgeInsets.only(bottom: 16),
                 elevation: 4,
-                child: ListTile(
-                  leading: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: orderImageWidget,
-                  ),
-                  title: Text('ผู้รับ: ${order['recipientName']}'),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text('📦 สินค้า: ${items.join(', ')}'),
-                      Text('📞 โทร: ${order['recipientPhone']}'),
-                      Text('📍 ที่อยู่: ${order['recipientAddress']}'),
-                      if (createdAt != null)
-                        Text('🕐 วันที่สร้าง: ${createdAt.toLocal()}'),
+                      imageWidget,
+                      const SizedBox(height: 12),
+                      Text(
+                        'ผู้รับ: ${data['recipientName']}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: statusColor),
+                        ),
+                        child: Text(
+                          status,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('📦 สินค้า: ${items.join(', ')}'),
+                          Text('📞 โทร: ${data['recipientPhone']}'),
+                          Text(
+                            '📍 ที่อยู่: ${data['recipientAddress']}',
+                            softWrap: true,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (createdAt != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                '🕐 วันที่สร้าง: ${createdAt.toLocal().toString().substring(0, 19)}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // ✅ ปุ่มดูแผนที่ (กดได้เฉพาะเมื่อไรเดอร์รับงานแล้ว)
+                      // ElevatedButton.icon(
+                      //   icon: const Icon(Icons.map_outlined),
+                      //   label: const Text('ดูแผนที่'),
+                      //   style: ElevatedButton.styleFrom(
+                      //     backgroundColor: Colors.blue[700],
+                      //     foregroundColor: Colors.white,
+                      //   ),
+                      //   onPressed: () {
+                      //     if (status == 'รอไรเดอร์มารับสินค้า') {
+                      //       ScaffoldMessenger.of(context).showSnackBar(
+                      //         const SnackBar(
+                      //           content: Text(
+                      //               'ยังไม่สามารถเปิดแผนที่ได้ เนื่องจากยังไม่มีไรเดอร์รับงาน'),
+                      //           backgroundColor: Colors.orange,
+                      //           behavior: SnackBarBehavior.floating,
+                      //         ),
+                      //       );
+                      //     } else {
+                      //       Navigator.push(
+                      //         context,
+                      //         MaterialPageRoute(
+                      //           builder: (context) => MapPage(),
+                      //         ),
+                      //       );
+                      //     }
+                      //   },
+                      // ),
                     ],
                   ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor),
-                    ),
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  onTap: () {
-                    // 👉 ไปหน้าแผนที่/รายละเอียดเพิ่มเติมในอนาคต
-                  },
                 ),
               );
             },
           );
         },
       ),
+
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Colors.blue[700],
         icon: const Icon(Icons.add, color: Colors.white),
