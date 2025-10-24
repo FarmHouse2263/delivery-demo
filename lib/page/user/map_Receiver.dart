@@ -4,21 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-class UserReceiver extends StatefulWidget {
+class MapReceiver extends StatefulWidget {
   final String recipientPhone; // เบอร์โทรผู้ใช้ที่ login
   final String? recipientName; // ชื่อผู้ใช้
 
-  const UserReceiver({
+  const MapReceiver({
     super.key,
     required this.recipientPhone,
     required this.recipientName,
   });
 
   @override
-  State<UserReceiver> createState() => _UserReceiverState();
+  State<MapReceiver> createState() => _MapReceiverState();
 }
 
-class _UserReceiverState extends State<UserReceiver> {
+class _MapReceiverState extends State<MapReceiver> {
   String? profileUrl;
   bool isLoading = true;
   GoogleMapController? mapController;
@@ -39,8 +39,9 @@ class _UserReceiverState extends State<UserReceiver> {
           .collection('users')
           .where(
             'phone_number',
-            isEqualTo:
-                widget.recipientPhone.replaceAll(RegExp(r'\D'), '').trim(),
+            isEqualTo: widget.recipientPhone
+                .replaceAll(RegExp(r'\D'), '')
+                .trim(),
           )
           .get();
 
@@ -50,8 +51,9 @@ class _UserReceiverState extends State<UserReceiver> {
         String? downloadUrl;
 
         if (profilePath != null && profilePath.isNotEmpty) {
-          downloadUrl =
-              await FirebaseStorage.instance.ref(profilePath).getDownloadURL();
+          downloadUrl = await FirebaseStorage.instance
+              .ref(profilePath)
+              .getDownloadURL();
         }
 
         setState(() {
@@ -99,7 +101,10 @@ class _UserReceiverState extends State<UserReceiver> {
     return Scaffold(
       appBar: AppBar(
         foregroundColor: Colors.white,
-        title: const Text("แผนที่ผู้รับ", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "แผนที่ผู้รับ",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue,
       ),
       body: isLoading
@@ -107,8 +112,10 @@ class _UserReceiverState extends State<UserReceiver> {
           : StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('orders')
-                  .where('recipientPhone',
-                      isEqualTo: widget.recipientPhone.trim())
+                  .where(
+                    'recipientPhone',
+                    isEqualTo: widget.recipientPhone.trim(),
+                  )
                   .snapshots(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
@@ -139,7 +146,8 @@ class _UserReceiverState extends State<UserReceiver> {
                             snippet: 'เบอร์: ${data['recipientPhone']}',
                           ),
                           icon: BitmapDescriptor.defaultMarkerWithHue(
-                              BitmapDescriptor.hueBlue),
+                            BitmapDescriptor.hueBlue,
+                          ),
                         ),
                       );
                       initialPosition = recipientLatLng!;
@@ -149,7 +157,8 @@ class _UserReceiverState extends State<UserReceiver> {
 
                   // เพิ่ม Marker Rider ของ order ตัวเอง (status รับหรือกำลังส่ง)
                   if ((data['status'] == "ไรเดอร์รับสินค้าแล้ว" ||
-                          data['status'] == "ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง") &&
+                          data['status'] ==
+                              "ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง") &&
                       data['riderGps'] != null &&
                       data['riderId'] != null) {
                     String riderId = data['riderId'];
@@ -163,7 +172,8 @@ class _UserReceiverState extends State<UserReceiver> {
                           snippet: 'สถานะ: ${data['status']}',
                         ),
                         icon: BitmapDescriptor.defaultMarkerWithHue(
-                            BitmapDescriptor.hueOrange),
+                          BitmapDescriptor.hueOrange,
+                        ),
                       );
                     }
                   }
@@ -175,8 +185,10 @@ class _UserReceiverState extends State<UserReceiver> {
                 return Stack(
                   children: [
                     GoogleMap(
-                      initialCameraPosition:
-                          CameraPosition(target: initialPosition, zoom: 14),
+                      initialCameraPosition: CameraPosition(
+                        target: initialPosition,
+                        zoom: 14,
+                      ),
                       markers: markers,
                       onMapCreated: (controller) => mapController = controller,
                     ),
@@ -189,7 +201,8 @@ class _UserReceiverState extends State<UserReceiver> {
                       child: Card(
                         elevation: 5,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
@@ -211,8 +224,9 @@ class _UserReceiverState extends State<UserReceiver> {
                                     child: Text(
                                       "สวัสดี $displayName",
                                       style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -221,21 +235,24 @@ class _UserReceiverState extends State<UserReceiver> {
                                 const Divider(),
                                 const Text(
                                   "ดูตำแหน่งไรเดอร์:",
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold),
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 Wrap(
                                   children: riderMarkers.entries
                                       .map(
                                         (e) => Padding(
-                                          padding: const EdgeInsets.only(right: 6),
+                                          padding: const EdgeInsets.only(
+                                            right: 6,
+                                          ),
                                           child: ElevatedButton.icon(
-                                            onPressed: () => moveCamera(
-                                                e.value.position),
+                                            onPressed: () =>
+                                                moveCamera(e.value.position),
                                             icon: const Icon(
-                                                Icons.delivery_dining),
+                                              Icons.delivery_dining,
+                                            ),
                                             label: Text(
-                                                e.key.substring(0, 6)), // แสดง ID สั้นๆ
+                                              e.key.substring(0, 6),
+                                            ), // แสดง ID สั้นๆ
                                           ),
                                         ),
                                       )

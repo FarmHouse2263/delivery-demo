@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:delivery1/page/LandingPage.dart';
+import 'package:delivery1/page/user/SelectReceiverPage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'create_order.dart';
@@ -23,7 +25,37 @@ class UserSender extends StatefulWidget {
 class _UserSenderState extends State<UserSender> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 🟦 กำหนดสีสถานะไว้ที่ด้านบน
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('ออกจากระบบ'),
+        content: Text('คูณต้องการออกจากระบบใช่หรือไม่?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('ยกเลิก'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // ปิด dialog
+              // ลบข้อมูล session / token ที่เก็บไว้ถ้ามี
+
+              // ไปยังหน้าล็อกอิน
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LandingPage()),
+                (route) => false,
+              );
+            },
+            child: const Text('ตกลง'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // สีของสถานะ
   final Map<String, Color> statusColorMap = {
     'รอไรเดอร์มารับสินค้า': Colors.orange,
     'ไรเดอร์รับงาน': Colors.blue,
@@ -36,72 +68,74 @@ class _UserSenderState extends State<UserSender> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
-  foregroundColor: Colors.white,
-  elevation: 2,
-  title: Text(
-    'รายการส่งของ: ${widget.senderName}',
-    style: const TextStyle(
-      color: Colors.white,
-      fontWeight: FontWeight.bold,
-    ),
-  ),
-  centerTitle: true,
-  backgroundColor: Colors.blue[700],
+        automaticallyImplyLeading: false,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        title: Text(
+          'รายการส่งของ: ${widget.senderName}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.map_outlined),
+            tooltip: 'ดูแผนที่',
+            onPressed: () {
+              _firestore
+                  .collection('orders')
+                  .where('senderId', isEqualTo: widget.senderId)
+                  .orderBy('createdAt', descending: true)
+                  .limit(1)
+                  .get()
+                  .then((snapshot) {
+                    if (snapshot.docs.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('ยังไม่มีรายการส่งสินค้า'),
+                          backgroundColor: Colors.orange,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
 
-  // ✅ เพิ่มปุ่มดูแผนที่ด้านขวา
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.map_outlined),
-      tooltip: 'ดูแผนที่',
-      onPressed: () {
-        // ตรวจสอบสถานะของรายการล่าสุด
-        _firestore
-            .collection('orders')
-            .where('senderId', isEqualTo: widget.senderId)
-            .orderBy('createdAt', descending: true)
-            .limit(1) // เอารายการล่าสุด
-            .get()
-            .then((snapshot) {
-          if (snapshot.docs.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('ยังไม่มีรายการส่งสินค้า'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            return;
-          }
+                    final data =
+                        snapshot.docs.first.data() as Map<String, dynamic>;
+                    final status = data['status'] as String;
 
-          final data =
-              snapshot.docs.first.data() as Map<String, dynamic>;
-          final status = data['status'] as String;
+                    if (status == 'รอไรเดอร์มารับสินค้า') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'ยังไม่มีไรเดอร์รับงาน ไม่สามารถเปิดแผนที่ได้',
+                          ),
+                          backgroundColor: Colors.orange,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => MapPage()),
+                      );
+                    }
+                  });
+            },
+          ),
 
-          if (status == 'รอไรเดอร์มารับสินค้า') {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'ยังไม่สามารถเปิดแผนที่ได้ เนื่องจากยังไม่มีไรเดอร์รับงาน'),
-                backgroundColor: Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          } else {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => MapPage(),
-              ),
-            );
-          }
-        });
-      },
-    ),
-  ],
-),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'ออกจากระบบ',
+            onPressed: _logout,
+          ),
+        ],
 
+      ),
 
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
@@ -136,30 +170,83 @@ class _UserSenderState extends State<UserSender> {
               final status = data['status'] as String;
               final statusColor = statusColorMap[status] ?? Colors.grey;
 
-              Widget imageWidget = const Icon(
+              // ---------- โหลดรูปสินค้า ----------
+              Widget orderImageWidget = const Icon(
                 Icons.inventory_2_outlined,
                 size: 70,
                 color: Colors.grey,
               );
 
-              if (data['orderImage'] != null &&
-                  data['orderImage']['imageBase64'] != null) {
+              final orderImage = data['orderImage'];
+              if (orderImage != null) {
                 try {
-                  final imageBytes = base64Decode(
-                    data['orderImage']['imageBase64'],
-                  );
-                  imageWidget = ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.memory(
-                      imageBytes,
-                      width: 90,
-                      height: 90,
-                      fit: BoxFit.cover,
-                    ),
-                  );
-                } catch (_) {}
+                  String? base64String;
+
+                  if (orderImage is Map && orderImage['imageBase64'] != null) {
+                    base64String = orderImage['imageBase64'];
+                  } else if (orderImage is String) {
+                    if (orderImage.contains('{')) {
+                      final decoded = jsonDecode(orderImage);
+                      base64String = decoded['imageBase64'];
+                    } else {
+                      base64String = orderImage;
+                    }
+                  }
+
+                  if (base64String != null && base64String.isNotEmpty) {
+                    final imageBytes = base64Decode(base64String);
+                    orderImageWidget = ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(
+                        imageBytes,
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('❌ ไม่สามารถแสดงรูป orderImage ได้: $e');
+                }
               }
 
+              // ---------- โหลดรูปสถานะจากไรเดอร์ ----------
+              Widget? statusImageWidget;
+              final statusImage = data['statusImageBase64'];
+              if (statusImage != null) {
+                try {
+                  String? base64Status;
+
+                  if (statusImage is Map &&
+                      statusImage['imageBase64'] != null) {
+                    base64Status = statusImage['imageBase64'];
+                  } else if (statusImage is String) {
+                    if (statusImage.contains('{')) {
+                      final decoded = jsonDecode(statusImage);
+                      base64Status = decoded['imageBase64'];
+                    } else {
+                      base64Status = statusImage;
+                    }
+                  }
+
+                  if (base64Status != null && base64Status.isNotEmpty) {
+                    final imageBytes = base64Decode(base64Status);
+                    statusImageWidget = ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(
+                        imageBytes,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('❌ ไม่สามารถแสดงรูปสถานะได้: $e');
+                }
+              }
+
+              // ---------- สร้าง UI ----------
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 elevation: 4,
@@ -171,8 +258,9 @@ class _UserSenderState extends State<UserSender> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      imageWidget,
-                      const SizedBox(height: 12),
+                      orderImageWidget,
+                      const SizedBox(height: 10),
+
                       Text(
                         'ผู้รับ: ${data['recipientName']}',
                         style: const TextStyle(
@@ -182,6 +270,7 @@ class _UserSenderState extends State<UserSender> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
+
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -201,7 +290,19 @@ class _UserSenderState extends State<UserSender> {
                           ),
                         ),
                       ),
+
+                      if (statusImageWidget != null) ...[
+                        const SizedBox(height: 12),
+                        const Text(
+                          '📸 รูปประกอบสถานะ',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        statusImageWidget,
+                      ],
+
                       const SizedBox(height: 12),
+
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -226,36 +327,6 @@ class _UserSenderState extends State<UserSender> {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-
-                      // ✅ ปุ่มดูแผนที่ (กดได้เฉพาะเมื่อไรเดอร์รับงานแล้ว)
-                      // ElevatedButton.icon(
-                      //   icon: const Icon(Icons.map_outlined),
-                      //   label: const Text('ดูแผนที่'),
-                      //   style: ElevatedButton.styleFrom(
-                      //     backgroundColor: Colors.blue[700],
-                      //     foregroundColor: Colors.white,
-                      //   ),
-                      //   onPressed: () {
-                      //     if (status == 'รอไรเดอร์มารับสินค้า') {
-                      //       ScaffoldMessenger.of(context).showSnackBar(
-                      //         const SnackBar(
-                      //           content: Text(
-                      //               'ยังไม่สามารถเปิดแผนที่ได้ เนื่องจากยังไม่มีไรเดอร์รับงาน'),
-                      //           backgroundColor: Colors.orange,
-                      //           behavior: SnackBarBehavior.floating,
-                      //         ),
-                      //       );
-                      //     } else {
-                      //       Navigator.push(
-                      //         context,
-                      //         MaterialPageRoute(
-                      //           builder: (context) => MapPage(),
-                      //         ),
-                      //       );
-                      //     }
-                      //   },
-                      // ),
                     ],
                   ),
                 ),
@@ -266,7 +337,7 @@ class _UserSenderState extends State<UserSender> {
       ),
 
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.blue[700],
+        backgroundColor: Colors.blue,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
           'สร้างรายการส่ง',

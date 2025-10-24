@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:developer';
+import 'package:delivery1/page/user/SelectReceiverPage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
@@ -26,14 +27,20 @@ class _CreateOrderState extends State<CreateOrder> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker picker = ImagePicker();
 
-  Uint8List? orderImageBytes; // เก็บรูปเป็น bytes ทันที
+  Uint8List? orderImageBytes;
+  Uint8List? recipientProfileBytes;
+  String? recipientProfileUrl;
+
   final TextEditingController _recipientNameController =
       TextEditingController();
   final TextEditingController _recipientPhoneController =
       TextEditingController();
+  final TextEditingController _recipientPasswordController =
+      TextEditingController();
   final TextEditingController _recipientAddressController =
       TextEditingController();
   final TextEditingController _itemController = TextEditingController();
+  final TextEditingController _recipientGpsController = TextEditingController();
 
   String _recipientGps = '';
   List<String> items = [];
@@ -44,23 +51,17 @@ class _CreateOrderState extends State<CreateOrder> {
     _initFirebase();
   }
 
-  /// 🔹 Initial Firebase + App Check + Sign-in
   Future<void> _initFirebase() async {
     await Firebase.initializeApp();
-
-    // App Check แบบ Debug
     await FirebaseAppCheck.instance.activate(
       androidProvider: AndroidProvider.debug,
       appleProvider: AppleProvider.debug,
     );
-
-    // Sign-in anonymous
     if (FirebaseAuth.instance.currentUser == null) {
       await FirebaseAuth.instance.signInAnonymously();
     }
   }
 
-  /// 🔍 ค้นหาผู้รับจากเบอร์โทร
   Future<void> _searchRecipient() async {
     final phone = _recipientPhoneController.text.trim();
     if (phone.isEmpty) {
@@ -74,23 +75,47 @@ class _CreateOrderState extends State<CreateOrder> {
       final query = await _firestore
           .collection('users')
           .where('phone_number', isEqualTo: phone)
-          .where('role', isEqualTo: 'Receiver')
           .limit(1)
           .get();
 
       if (query.docs.isNotEmpty) {
         final data = query.docs.first.data() as Map<String, dynamic>;
+        log('🔹 Raw profile_image: ${data['profile_image']}');
+
         setState(() {
           _recipientNameController.text = data['name'] ?? '';
+          _recipientPasswordController.text = data['password'] ?? '';
           _recipientAddressController.text = data['address'] ?? '';
           _recipientGps = data['gps'] ?? '';
+          _recipientGpsController.text = _recipientGps;
+
+          recipientProfileBytes = null;
+          recipientProfileUrl = null;
+
+          final profileData = data['profile_image'];
+          if (profileData != null) {
+            try {
+              if (profileData is Map && profileData['imageBase64'] != null) {
+                final base64Str = profileData['imageBase64']
+                    .toString()
+                    .replaceAll(RegExp(r'\s+'), '');
+                recipientProfileBytes = base64Decode(base64Str);
+              } else if (profileData is String && profileData.isNotEmpty) {
+                final cleaned = profileData.replaceAll(RegExp(r'\s+'), '');
+                recipientProfileBytes = base64Decode(cleaned);
+              }
+            } catch (e) {
+              log('❌ Decode Base64 fail: $e');
+            }
+          }
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('ดึงข้อมูลผู้รับสำเร็จ')));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ แสดงข้อมูลผู้รับสำเร็จ')),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ไม่พบข้อมูลผู้รับจากหมายเลขนี้')),
+          const SnackBar(content: Text('❌ ไม่พบข้อมูลผู้รับจากหมายเลขนี้')),
         );
       }
     } catch (e) {
@@ -100,7 +125,6 @@ class _CreateOrderState extends State<CreateOrder> {
     }
   }
 
-  /// ➕ เพิ่มสินค้า
   void _addItem() {
     if (_itemController.text.isNotEmpty) {
       setState(() {
@@ -110,7 +134,6 @@ class _CreateOrderState extends State<CreateOrder> {
     }
   }
 
-  /// 📷 เลือกรูป
   void _showImagePicker() {
     showModalBottomSheet(
       context: context,
@@ -131,7 +154,7 @@ class _CreateOrderState extends State<CreateOrder> {
                   source: ImageSource.gallery,
                 );
                 if (picked != null) {
-                  orderImageBytes = await picked.readAsBytes(); // แปลงทันที
+                  orderImageBytes = await picked.readAsBytes();
                   setState(() {});
                 }
               },
@@ -145,7 +168,7 @@ class _CreateOrderState extends State<CreateOrder> {
                   source: ImageSource.camera,
                 );
                 if (picked != null) {
-                  orderImageBytes = await picked.readAsBytes(); // แปลงทันที
+                  orderImageBytes = await picked.readAsBytes();
                   setState(() {});
                 }
               },
@@ -156,24 +179,6 @@ class _CreateOrderState extends State<CreateOrder> {
     );
   }
 
-  /// ☁️ แปลงรูปเป็น Base64 สำหรับ Firestore
-  Future<Map<String, dynamic>?> _uploadImageToFirestore() async {
-    if (orderImageBytes == null) return null;
-
-    try {
-      final base64Image = base64Encode(orderImageBytes!);
-      final imageData = {
-        'imageBase64': base64Image,
-        'uploadedAt': FieldValue.serverTimestamp(),
-      };
-      return imageData;
-    } catch (e) {
-      log('❌ แปลงรูปเป็น Base64 ไม่สำเร็จ: $e');
-      return null;
-    }
-  }
-
-  /// 📝 สร้างออเดอร์
   Future<void> _createOrder() async {
     if (_recipientNameController.text.isEmpty ||
         _recipientPhoneController.text.isEmpty ||
@@ -182,15 +187,15 @@ class _CreateOrderState extends State<CreateOrder> {
         items.isEmpty ||
         orderImageBytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกข้อมูลครบทุกช่องและอัปโหลดรูป')),
+        const SnackBar(
+          content: Text('กรุณากรอกข้อมูลครบทุกช่องและอัปโหลดรูปสินค้า'),
+        ),
       );
       return;
     }
 
     try {
-      final imageData = await _uploadImageToFirestore();
-      if (imageData == null) return;
-
+      final base64OrderImage = base64Encode(orderImageBytes!);
       await _firestore.collection('orders').add({
         'senderId': widget.senderId,
         'senderName': widget.senderName,
@@ -198,16 +203,19 @@ class _CreateOrderState extends State<CreateOrder> {
         'recipientPhone': _recipientPhoneController.text.trim(),
         'recipientAddress': _recipientAddressController.text.trim(),
         'recipientGps': _recipientGps,
+        'recipientPassword': _recipientPasswordController.text.trim(),
+        'profile_image': recipientProfileBytes != null
+            ? base64Encode(recipientProfileBytes!)
+            : recipientProfileUrl ?? null,
         'items': items,
         'status': 'รอไรเดอร์มารับสินค้า',
-        'orderImage': imageData, // Base64
+        'orderImage': base64OrderImage,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('✅ สร้างรายการส่งสำเร็จ')));
-
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(
@@ -216,16 +224,37 @@ class _CreateOrderState extends State<CreateOrder> {
     }
   }
 
+  Future<void> _selectReceiver() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SelectReceiverPage()),
+    );
+
+    if (result != null) {
+      setState(() {
+        _recipientNameController.text = result['name'] ?? '';
+        _recipientPhoneController.text = result['phone_number'] ?? '';
+        _recipientAddressController.text = result['address'] ?? '';
+        _recipientGps = result['gps'] ?? '';
+        _recipientGpsController.text = _recipientGps;
+        _recipientPasswordController.text = result['password'] ?? '';
+
+        recipientProfileBytes = result['profileBytes'];
+        recipientProfileUrl = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        foregroundColor: Colors.white,
         title: const Text(
           'สร้างรายการส่งสินค้า',
           style: TextStyle(color: Colors.white),
         ),
         backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -263,7 +292,36 @@ class _CreateOrderState extends State<CreateOrder> {
                   ),
                   child: const Icon(Icons.search, color: Colors.white),
                 ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectReceiver,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    padding: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Icon(Icons.list, color: Colors.white),
+                ),
               ],
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: recipientProfileBytes != null
+                  ? CircleAvatar(
+                      radius: 50,
+                      backgroundImage: MemoryImage(recipientProfileBytes!),
+                    )
+                  : (recipientProfileUrl != null
+                        ? CircleAvatar(
+                            radius: 50,
+                            backgroundImage: NetworkImage(recipientProfileUrl!),
+                          )
+                        : const CircleAvatar(
+                            radius: 50,
+                            child: Icon(Icons.person, size: 40),
+                          )),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -277,9 +335,31 @@ class _CreateOrderState extends State<CreateOrder> {
             ),
             const SizedBox(height: 12),
             TextField(
+              controller: _recipientPasswordController,
+              decoration: InputDecoration(
+                labelText: 'รหัสผ่านผู้รับ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              obscureText: true,
+            ),
+            const SizedBox(height: 12),
+            TextField(
               controller: _recipientAddressController,
               decoration: InputDecoration(
                 labelText: 'ที่อยู่ผู้รับ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _recipientGpsController,
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'พิกัด GPS',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -340,7 +420,7 @@ class _CreateOrderState extends State<CreateOrder> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'รูปประกอบสถานะ',
+                    'รูปสินค้า',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),

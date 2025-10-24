@@ -1,9 +1,10 @@
 // import 'package:delivery1/page/user/userSender.dart';
+import 'package:delivery1/page/user/userReceiverList.dart';
 import 'package:delivery1/page/user/userSender.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:delivery1/page/user/registeruser.dart';
-import 'package:delivery1/page/user/userReceiver.dart';
+import 'package:delivery1/page/user/map_Receiver.dart';
 import 'dart:developer';
 
 class LoginPage extends StatefulWidget {
@@ -49,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
       final userData = userDoc.data() as Map<String, dynamic>;
 
       // ✅ เพิ่ม log เพื่อตรวจสอบข้อมูล
-      log("User logged in:");
+      log("User logged in: ");
       log("ID: ${userDoc.id}");
       log("Name: ${userData['name']}");
       log("Email: ${userData['email']}");
@@ -76,7 +77,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => UserReceiver(
+            builder: (context) => Userreceiverlist(
               recipientPhone: userData['phone_number'] ?? '',
               recipientName: userData['name'] ?? '',
               // recipientProfileImage: userData['profile_image'] ?? '',

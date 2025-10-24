@@ -47,13 +47,18 @@ class _RiderMapPageState extends State<RiderMapPage> {
   }
 
   void _listenOrder() {
-    _firestore.collection('orders').doc(widget.orderId).snapshots().listen((doc) {
+    _firestore.collection('orders').doc(widget.orderId).snapshots().listen((
+      doc,
+    ) {
       final data = doc.data();
       if (data == null) return;
 
       pickupLatLng = _parseLatLng(data['recipientGps']);
-      deliveryLatLng = _parseLatLng(data['recipientGps']); // สมมติที่อยู่ผู้รับเป็น delivery
-      if (data['riderGps'] != null) riderLatLng = _parseLatLng(data['riderGps']);
+      deliveryLatLng = _parseLatLng(
+        data['recipientGps'],
+      ); // สมมติที่อยู่ผู้รับเป็น delivery
+      if (data['riderGps'] != null)
+        riderLatLng = _parseLatLng(data['riderGps']);
 
       final newStatus = data['status'] ?? '';
       if (newStatus != currentStatus && !_isDisposed) {
@@ -94,7 +99,10 @@ class _RiderMapPageState extends State<RiderMapPage> {
     }
   }
 
-  Future<bool> _checkDistance(LatLng target, {double allowedDistance = 20}) async {
+  Future<bool> _checkDistance(
+    LatLng target, {
+    double allowedDistance = 20,
+  }) async {
     if (riderLatLng == null) return false;
     double distance = Geolocator.distanceBetween(
       riderLatLng!.latitude,
@@ -108,10 +116,12 @@ class _RiderMapPageState extends State<RiderMapPage> {
   Future<void> _takePhotoAndUpdateStatus(String newStatus) async {
     if ((newStatus == 'ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง' ||
             newStatus == 'ส่งสินค้าแล้ว') &&
-        deliveryLatLng == null) return;
+        deliveryLatLng == null)
+      return;
 
     // สำหรับ status 4 (ส่งสินค้าแล้ว) ตรวจสอบระยะก่อน
-    if (newStatus == 'ส่งสินค้าแล้ว' && !(await _checkDistance(deliveryLatLng!))) {
+    if (newStatus == 'ส่งสินค้าแล้ว' &&
+        !(await _checkDistance(deliveryLatLng!))) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('คุณยังอยู่ห่างเกิน 20 เมตร')),
       );
@@ -131,8 +141,9 @@ class _RiderMapPageState extends State<RiderMapPage> {
     await _firestore.collection('orders').doc(widget.orderId).update({
       'status': newStatus,
       'statusImageBase64': base64Image,
-      'deliveredAt':
-          newStatus == 'ส่งสินค้าแล้ว' ? FieldValue.serverTimestamp() : null,
+      'deliveredAt': newStatus == 'ส่งสินค้าแล้ว'
+          ? FieldValue.serverTimestamp()
+          : null,
     });
 
     ScaffoldMessenger.of(
@@ -165,14 +176,18 @@ class _RiderMapPageState extends State<RiderMapPage> {
                   Marker(
                     markerId: const MarkerId('rider'),
                     position: riderLatLng!,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueOrange,
+                    ),
                     infoWindow: InfoWindow(title: 'Rider: ${widget.riderName}'),
                   ),
                 if (deliveryLatLng != null)
                   Marker(
                     markerId: const MarkerId('delivery'),
                     position: deliveryLatLng!,
-                    icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                      BitmapDescriptor.hueBlue,
+                    ),
                     infoWindow: const InfoWindow(title: 'ตำแหน่งส่งสินค้า'),
                   ),
               },
@@ -184,8 +199,9 @@ class _RiderMapPageState extends State<RiderMapPage> {
           if (currentStatus == 'ไรเดอร์รับงาน')
             FloatingActionButton.extended(
               heroTag: 'status3',
-              onPressed: () =>
-                  _takePhotoAndUpdateStatus('ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง'),
+              onPressed: () => _takePhotoAndUpdateStatus(
+                'ไรเดอร์รับสินค้าแล้วและกำลังเดินทางไปส่ง',
+              ),
               label: const Text('รับสินค้าแล้ว (ถ่ายรูป)'),
               icon: const Icon(Icons.camera_alt),
               backgroundColor: Colors.orange,
@@ -194,8 +210,18 @@ class _RiderMapPageState extends State<RiderMapPage> {
             FloatingActionButton.extended(
               heroTag: 'status4',
               onPressed: () => _takePhotoAndUpdateStatus('ส่งสินค้าแล้ว'),
-              label: const Text('ส่งสินค้าแล้ว (ถ่ายรูป)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
-              icon: const Icon(Icons.done, color: Colors.white, fontWeight: FontWeight.bold,),
+              label: const Text(
+                'ส่งสินค้าแล้ว (ถ่ายรูป)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              icon: const Icon(
+                Icons.done,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
               backgroundColor: Colors.orange,
             ),
         ],
